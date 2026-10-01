@@ -1,0 +1,16 @@
+# Copy to Pulumi.staging.yaml or Pulumi.production.yaml. No database passwords.
+config:
+  demoapp-data:aksStack: organization/aks/dev
+  demoapp-data:entraAdminObjectId: REPLACE_WITH_ENTRA_OBJECT_ID
+  demoapp-data:entraAdminName: REPLACE_WITH_ENTRA_USER_OR_GROUP_NAME
+  demoapp-data:entraAdminType: User
+  # Explicit public IPv4 addresses: AKS egress IP(s), plus the bootstrap runner.
+  # Documentation addresses below MUST be replaced before deploying.
+  demoapp-data:postgresAllowedIps:
+    - 203.0.113.10
+  demoapp-data:postgresSku: Standard_B1ms
+  demoapp-data:postgresTier: Burstable
+  demoapp-data:postgresStorageGb: 32
+  demoapp-data:backupRetentionDays: 7
+  demoapp-data:blobRetentionDays: 14
+  demoapp-data:protect: true

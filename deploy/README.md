@@ -32,8 +32,9 @@ See [Argo CD reconciliation and webhooks](https://argo-cd.readthedocs.io/en/stab
 
 ## One-time platform setup
 
-The companion `infra` repo owns Argo CD installation on AKS. This repo provides
-application manifests; it does not reinstall Argo CD or provision PostgreSQL/Storage.
+The companion `app-tools` repo owns Argo CD installation on AKS. This repo provides
+application manifests and a separate [`infra/` Pulumi project](../infra/README.md)
+for PostgreSQL/Blob Storage. It does not reinstall Argo CD.
 The following bootstrap must be completed before automatic deployment can work:
 
 1. Configure the existing `acr-publish` GitHub environment as described in the root
@@ -50,24 +51,15 @@ The following bootstrap must be completed before automatic deployment can work:
    Do not save a short-lived `az acr login --expose-token` token as a permanent
    Argo CD credential. A platform-managed Azure workload identity integration is
    another option, but it must be configured on Argo CD first.
-4. Provision separate databases/users and Blob containers for staging and production.
-   Separate namespaces alone do not isolate external data. The chart uses
-   `demoapp-staging` and `demoapp-production` containers; preferably use separate
-   storage accounts/credentials as well. The DB role needs schema-creation privileges
-   because the app initializes its tables. Azure PostgreSQL URLs need TLS, e.g.
-   `sslmode=require`, and URL-encoded credentials.
-5. Create the runtime Secret in **each namespace**. Make `staging.runtime.env` and
-   `production.runtime.env` from `runtime.env.example`; these filenames are ignored
-   by Git. Populate the real credentials, then run from the repository root:
-
-   ```sh
-   kubectl create namespace staging --dry-run=client -o yaml | kubectl apply -f -
-   kubectl create namespace production --dry-run=client -o yaml | kubectl apply -f -
-   kubectl -n staging create secret generic demoapp-runtime \
-     --from-env-file=staging.runtime.env --dry-run=client -o yaml | kubectl apply -f -
-   kubectl -n production create secret generic demoapp-runtime \
-     --from-env-file=production.runtime.env --dry-run=client -o yaml | kubectl apply -f -
-   ```
+4. Follow [the data infrastructure guide](../infra/README.md) to provision separate
+   PostgreSQL servers, Blob accounts/containers, and managed identities for staging
+   and production. The database allowlist needs AKS egress and operator public IPs.
+5. Run `infra/bootstrap.py` as described in that guide to map each Entra identity to
+   the SQL role and install its `demoapp-data` ServiceAccount and `demoapp-runtime`
+   ConfigMap. Azure deployment uses no database passwords or storage account keys.
+   The updated app image is required for workload identity. For externally managed
+   password-authenticated services, set `workloadIdentity.enabled=false` and create
+   the legacy `demoapp-runtime` Secret from `runtime.env.example` in each namespace.
 
 6. Replace `REGISTRY.azurecr.io` in `argocd/applications.yaml` with the actual ACR
    hostname, then bootstrap it once:
@@ -120,15 +112,17 @@ additive and serialized across replicas with a PostgreSQL advisory lock.
 | --- | --- | --- |
 | Namespace | `staging` | `production` |
 | Replicas | 1 | 2 |
-| Runtime Secret | `staging/demoapp-runtime` | `production/demoapp-runtime` |
+| Runtime ConfigMap | `staging/demoapp-runtime` | `production/demoapp-runtime` |
+| Workload ServiceAccount | `staging/demoapp-data` | `production/demoapp-data` |
 | Blob container | `demoapp-staging` | `demoapp-production` |
 | Voluntary disruption budget | Disabled | At least 1 available |
 
 The chart fails rendering if an environment values file is used in the wrong
 namespace. Readiness checks DB and Blob connectivity; liveness only checks the
 HTTP server. Pods use a read-only root filesystem with writable `/tmp` for uploads.
-No persistent pod disk is needed. Secret rotations require a rollout to reload
-environment variables; update `podAnnotations` in desired values or restart pods.
+No persistent pod disk is needed. Runtime configuration changes require a rollout to reload environment variables;
+identity tokens refresh automatically. Update `podAnnotations` in desired values
+or restart pods after endpoint changes.
 
 Ingress is off until a real controller, host, TLS certificate, and appropriate
 access controls are available. For a temporary local view:

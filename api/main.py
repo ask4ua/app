@@ -5,12 +5,15 @@ import random
 import time
 import warnings
 from contextlib import asynccontextmanager
+from functools import lru_cache
 from pathlib import Path
 from uuid import UUID, uuid4
 
 import psycopg
+import certifi
 import pycountry
 from azure.core.exceptions import ResourceExistsError
+from azure.identity import DefaultAzureCredential, WorkloadIdentityCredential
 from azure.storage.blob import BlobServiceClient, ContentSettings
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
@@ -27,14 +30,33 @@ Image.MAX_IMAGE_PIXELS = 20_000_000
 log = logging.getLogger(__name__)
 
 
+@lru_cache(maxsize=1)
+def azure_credential():
+    # Be explicit in AKS; do not fall back to the node identity on federation failure.
+    if os.getenv('AZURE_FEDERATED_TOKEN_FILE'):
+        return WorkloadIdentityCredential()
+    return DefaultAzureCredential()
+
+
 def db():
-    return psycopg.connect(os.environ['DATABASE_URL'], row_factory=dict_row)
+    options = {}
+    if os.getenv('POSTGRES_AUTH') == 'entra':
+        # Acquire for each new connection; the credential caches and refreshes tokens.
+        options['password'] = azure_credential().get_token(
+            'https://ossrdbms-aad.database.windows.net/.default').token
+        options['sslmode'] = 'verify-full'
+        options['sslrootcert'] = certifi.where()
+    return psycopg.connect(os.environ['DATABASE_URL'], row_factory=dict_row, **options)
 
 
 def storage():
-    return BlobServiceClient.from_connection_string(
-        os.environ['AZURE_STORAGE_CONNECTION_STRING'], api_version='2023-11-03'
-    ).get_container_client(os.getenv('AZURE_STORAGE_CONTAINER', 'challenges'))
+    if os.getenv('AZURE_STORAGE_ACCOUNT_URL'):
+        client = BlobServiceClient(os.environ['AZURE_STORAGE_ACCOUNT_URL'],
+                                   credential=azure_credential(), api_version='2023-11-03')
+    else:
+        client = BlobServiceClient.from_connection_string(
+            os.environ['AZURE_STORAGE_CONNECTION_STRING'], api_version='2023-11-03')
+    return client.get_container_client(os.getenv('AZURE_STORAGE_CONTAINER', 'challenges'))
 
 
 def initialize():
@@ -51,10 +73,14 @@ def initialize():
             created_at TIMESTAMPTZ NOT NULL DEFAULT now(), answered_at TIMESTAMPTZ
         )''')
     with storage() as container:
-        try:
-            container.create_container()
-        except ResourceExistsError:
-            pass
+        if os.getenv('AZURE_STORAGE_ACCOUNT_URL'):
+            # Cloud containers are provisioned by Pulumi; app access is container-scoped.
+            container.get_container_properties()
+        else:
+            try:
+                container.create_container()
+            except ResourceExistsError:
+                pass
 
 
 @asynccontextmanager

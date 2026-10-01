@@ -2,3 +2,5 @@ expectedNamespace: staging
 replicaCount: 1
 existingSecret: demoapp-runtime
 storageContainer: demoapp-staging
+workloadIdentity:
+  enabled: true

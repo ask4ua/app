@@ -5,3 +5,5 @@ storageContainer: demoapp-production
 podDisruptionBudget:
   enabled: true
   minAvailable: 1
+workloadIdentity:
+  enabled: true

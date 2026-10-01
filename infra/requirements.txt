@@ -1,0 +1,5 @@
+pulumi==3.266.0
+pulumi-azure-native==3.28.0
+psycopg[binary]==3.3.3
+azure-identity==1.23.0
+certifi==2026.7.22

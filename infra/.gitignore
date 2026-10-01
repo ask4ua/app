@@ -1,0 +1,4 @@
+Pulumi.*.yaml
+!Pulumi.example.yaml
+.venv/
+.secrets/

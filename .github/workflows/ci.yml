@@ -34,7 +34,7 @@ jobs:
       - name: Helm chart checks
         run: python -m pytest -q tests/test_helm.py
       - name: Unit tests
-        run: python -m pytest -q tests/test_images.py
+        run: python -m pytest -q tests/test_images.py tests/test_identity.py
       - name: Build and start integration stack
         run: docker compose up --build --wait --wait-timeout 180
       - name: Integration tests
@@ -48,8 +48,33 @@ jobs:
         if: always()
         run: docker compose down --volumes --remove-orphans
 
+  infrastructure-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: disposable-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    env:
+      TEST_BOOTSTRAP_DATABASE_URL: postgresql://postgres:disposable-ci-password@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: infra/requirements.txt
+      - run: python -m pip install -r infra/requirements.txt
+      - run: python -m unittest discover -s infra/tests -v
+
   publish:
-    needs: test
+    needs: [test, infrastructure-checks]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20

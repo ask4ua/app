@@ -1,0 +1,6 @@
+name: demoapp-data
+description: Independent PostgreSQL and Blob Storage for each demoapp environment
+runtime:
+  name: python
+  options:
+    virtualenv: .venv

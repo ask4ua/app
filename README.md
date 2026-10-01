@@ -51,11 +51,20 @@ There are no accounts. Each round has an unguessable ID, but it is not tied to a
 | GET | `/api/rounds/{id}/image` | Read challenge image from Blob Storage |
 | POST | `/api/rounds/{id}/guess` | JSON: `{"country":"UA"}`; save guess and reveal answer |
 
-## Azure later
+## Azure data infrastructure
+
+The [`infra/`](infra/README.md) Pulumi project provisions separate PostgreSQL and
+Blob Storage resources for staging and production, independently of application
+releases. Follow its setup guide to provision data and install each namespace's
+`demoapp-runtime` ConfigMap and workload ServiceAccount before deploying the Helm chart. The manual **Data
+infrastructure** workflow supports preview and apply; CI checks the project with
+Pulumi mocks.
+
+### Connection settings
 
 Set `AZURE_STORAGE_CONNECTION_STRING` in `.env` to an Azure Storage connection string and optionally set `AZURE_STORAGE_CONTAINER`. The same code and Blob protocol are used; the account must allow container creation (or the container must already exist). Keep secrets out of Git. For deployment, configure `DATABASE_URL` to point to Azure Database for PostgreSQL with its required TLS settings. The local Compose file intentionally supplies local database credentials; override that environment setting for a remote database.
 
-Azurite is an emulator, so Azure deployment still needs identity, network, and service compatibility checks. Managed identity can replace the connection string in a later infrastructure iteration. Schema creation currently happens at startup; use versioned migrations when evolving the database.
+Azurite is an emulator, so Azure deployment uses Entra Workload Identity for PostgreSQL and Blob Storage; the connection-string path remains available for local development. Schema creation currently happens at startup; use versioned migrations when evolving the database.
 
 Reference: [Microsoft's Azurite documentation](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azurite).
 
@@ -105,7 +114,7 @@ to **main**, and add these environment variables (not client secrets):
 | `ACR_NAME` | ACR resource name, without `.azurecr.io` |
 | `ACR_LOGIN_SERVER` | Actual registry hostname from the infrastructure outputs |
 
-The companion `tools` repo’s Pulumi project provisions the publishing identity and an
+The companion `app-tools` repo’s Pulumi project provisions the publishing identity and an
 ACR-scoped `AcrPush` grant for the existing AKS platform's classic RBAC registry.
 Its GitHub federation subject is `repo:OWNER/REPO:environment:acr-publish`, with
 issuer `https://token.actions.githubusercontent.com` and audience
@@ -113,7 +122,7 @@ issuer `https://token.actions.githubusercontent.com` and audience
 No Azure password or AKS access is required by this workflow. The hosted runner
 must be able to reach ACR; private registry networking needs a reachable runner.
 
-Keep Argo CD and Prometheus infrastructure in the separate `tools` repo.
+Keep Argo CD and Prometheus infrastructure in the separate `app-tools` repo.
 This pipeline also packages a Helm chart with the published image digest and
 pushes it to ACR's `charts/staging` channel. Argo CD automatically deploys the
 newest chart to the `staging` namespace. The **Promote to production** workflow

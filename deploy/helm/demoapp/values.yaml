@@ -9,6 +9,10 @@ replicaCount: 1
 # Environment overlays require the matching Helm release namespace.
 expectedNamespace: ''
 existingSecret: demoapp-runtime
+existingConfigMap: demoapp-runtime
+workloadIdentity:
+  enabled: false
+  serviceAccountName: demoapp-data
 storageContainer: challenges
 service:
   port: 80

@@ -35,10 +35,10 @@ def test_environment_contract(environment, replicas):
     pod = deployment['spec']['template']['spec']
     container = pod['containers'][0]
     assert container['image'] == 'example.azurecr.io/apps/demoapp@' + DIGEST
-    env = {item['name']: item for item in container['env']}
-    assert env['DATABASE_URL']['valueFrom']['secretKeyRef']['name'] == 'demoapp-runtime'
-    assert env['AZURE_STORAGE_CONNECTION_STRING']['valueFrom']['secretKeyRef']['key'] == 'AZURE_STORAGE_CONNECTION_STRING'
-    assert env['AZURE_STORAGE_CONTAINER']['value'] == 'demoapp-' + environment
+    assert pod['serviceAccountName'] == 'demoapp-data'
+    assert deployment['spec']['template']['metadata']['labels']['azure.workload.identity/use'] == 'true'
+    assert container['envFrom'][0]['configMapRef']['name'] == 'demoapp-runtime'
+    assert 'env' not in container
     assert container['readinessProbe']['httpGet']['path'] == '/api/health'
     assert container['livenessProbe']['httpGet']['path'] != '/api/health'
     assert any(obj['kind'] == 'PodDisruptionBudget' for obj in objects) == (environment == 'production')
@@ -87,3 +87,13 @@ def test_argocd_uses_separate_channels_and_automatic_sync():
         assert spec['source']['repoURL'].endswith('/charts/' + environment)
         assert spec['source']['helm']['valueFiles'] == [f'values-{environment}.yaml']
         assert spec['syncPolicy']['automated']['selfHeal'] is True
+
+
+def test_password_mode_remains_available_for_external_services():
+    result = render('staging', '--set', 'workloadIdentity.enabled=false')
+    assert result.returncode == 0, result.stderr
+    deployment = next(obj for obj in yaml.safe_load_all(result.stdout) if obj['kind'] == 'Deployment')
+    pod = deployment['spec']['template']['spec']
+    assert 'serviceAccountName' not in pod
+    env = {item['name']: item for item in pod['containers'][0]['env']}
+    assert env['DATABASE_URL']['valueFrom']['secretKeyRef']['name'] == 'demoapp-runtime'

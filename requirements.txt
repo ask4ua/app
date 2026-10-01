@@ -5,3 +5,5 @@ azure-storage-blob==12.25.1
 python-multipart==0.0.20
 Pillow==11.2.1
 pycountry==24.6.1
+azure-identity==1.23.0
+certifi==2026.7.22
