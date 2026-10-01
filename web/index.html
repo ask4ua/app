@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo App</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/game.js" defer></script>
+</head>
+<body>
+  <header><a class="brand" href="/">◎ Demo App</a><span>Look closer. Find the country.</span></header>
+  <main>
+    <div class="intro"><p class="eyebrow">A SMALL OSINT PHOTO GAME</p><h1>Every photo has a clue.</h1><p>Study the signs, streets, and surroundings. Pick the country.</p></div>
+    <nav aria-label="Game views"><button id="play-tab" class="tab active" aria-pressed="true">Guess a country</button><button id="upload-tab" class="tab" aria-pressed="false">Upload a challenge</button></nav>
+    <section id="play-panel" class="panel" aria-label="Guess a country">
+      <div class="panel-heading"><h2>Where was this taken?</h2><span id="score">0 / 0 correct this visit</span></div>
+      <p id="play-status" role="status">Loading your first challenge…</p>
+      <div id="round" hidden>
+        <div class="photo-frame"><img id="challenge-photo" alt="Challenge photograph: examine the scene to identify the country"></div>
+        <div id="options" class="options" aria-label="Country choices"></div>
+        <div id="result" role="status" hidden></div>
+        <button id="next" class="primary" hidden>Next photo →</button>
+      </div>
+      <button id="retry" class="secondary" hidden>Try again</button>
+      <button id="first-upload" class="primary" hidden>Upload the first photo →</button>
+    </section>
+    <section id="upload-panel" class="panel" aria-label="Upload a challenge" hidden>
+      <h2>Give someone a clue.</h2><p>Upload a photo you can share and tell us where it was taken.</p>
+      <form id="upload-form">
+        <label for="photo">Your photograph</label><input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" required aria-describedby="file-help">
+        <small id="file-help">JPEG, PNG, or WebP · up to 8 MB. Location metadata is removed.</small>
+        <img id="preview" alt="Your selected photograph" hidden>
+        <label for="country">Correct country</label><select id="country" name="country" required><option value="">Loading countries…</option></select>
+        <label for="explanation">What gives it away? <span class="muted">(optional)</span></label>
+        <textarea id="explanation" name="explanation" maxlength="500" rows="3" placeholder="For example: the language on the road sign."></textarea>
+        <small>Only shown after a guess. The answer is supplied by you.</small>
+        <button id="submit-upload" class="primary" type="submit">Add challenge →</button>
+      </form>
+      <p id="upload-status" role="status"></p>
+    </section>
+    <footer>One photo. Four countries. Trust the evidence.<br><span>Answers are provided by the people who upload the photos.</span></footer>
+  </main>
+</body>
+</html>

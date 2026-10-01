@@ -1,0 +1,71 @@
+name: Promote to production
+
+on:
+  workflow_dispatch:
+    inputs:
+      chart_version:
+        description: 'Tested staging chart version (for example 0.42.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demoapp-production-promotion
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: acr-publish
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ACR_NAME: ${{ vars.ACR_NAME }}
+      ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER }}
+      CHART_VERSION: ${{ inputs.chart_version }}
+    steps:
+      - name: Validate promotion request
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$CHART_VERSION" =~ ^0\.[1-9][0-9]*\.[1-9][0-9]*$ ]] || {
+            echo '::error::Enter an exact staging chart version, such as 0.42.1.'; exit 1;
+          }
+          [[ -n "$ACR_NAME" && -n "$ACR_LOGIN_SERVER" ]] || {
+            echo '::error::Configure ACR_NAME and ACR_LOGIN_SERVER in acr-publish.'; exit 1;
+          }
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - uses: azure/setup-helm@v4.3.1
+        with:
+          version: v3.17.3
+      - name: Copy the tested chart without rebuilding
+        shell: bash
+        run: |
+          set -euo pipefail
+          az acr repository list --name "$ACR_NAME" -o tsv > repositories.txt
+          if grep -Fxq 'charts/production/demoapp' repositories.txt; then
+            az acr repository show-tags --name "$ACR_NAME" --repository charts/production/demoapp -o tsv > tags.txt
+            latest=$(grep -E '^0\.[0-9]+\.[0-9]+$' tags.txt | sort -V | tail -1)
+            newest=$(printf '%s\n%s\n' "$latest" "$CHART_VERSION" | sort -V | tail -1)
+            if [[ "$newest" != "$CHART_VERSION" ]]; then
+              echo '::error::Production already has a newer chart. Use the documented rollback procedure.'
+              exit 1
+            fi
+          fi
+          az acr login --name "$ACR_NAME" --expose-token --query accessToken -o tsv |
+            helm registry login "$ACR_LOGIN_SERVER" \
+              --username 00000000-0000-0000-0000-000000000000 --password-stdin
+          # The exact archive embeds the image digest from the staging build.
+          helm pull "oci://$ACR_LOGIN_SERVER/charts/staging/demoapp" --version "$CHART_VERSION"
+          helm push "demoapp-$CHART_VERSION.tgz" "oci://$ACR_LOGIN_SERVER/charts/production"
+          printf '### Production promotion published\n\nChart: %s\n\nArgo CD will reconcile production automatically. Check its health before declaring the rollout successful.\n' \
+            "$CHART_VERSION" >> "$GITHUB_STEP_SUMMARY"

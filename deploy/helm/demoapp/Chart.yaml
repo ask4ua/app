@@ -1,0 +1,6 @@
+apiVersion: v2
+name: demoapp
+description: Demo App API and JavaScript photo guessing game
+version: 0.1.0
+type: application
+kubeVersion: '>=1.25.0-0'

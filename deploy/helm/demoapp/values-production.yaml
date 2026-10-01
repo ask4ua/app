@@ -1,0 +1,7 @@
+expectedNamespace: production
+replicaCount: 2
+existingSecret: demoapp-runtime
+storageContainer: demoapp-production
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

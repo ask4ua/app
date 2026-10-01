@@ -1,0 +1,34 @@
+# Override repository and digest with the ACR publishing job's output.
+image:
+  repository: ''
+  digest: ''
+  tag: ''
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+replicaCount: 1
+# Environment overlays require the matching Helm release namespace.
+expectedNamespace: ''
+existingSecret: demoapp-runtime
+storageContainer: challenges
+service:
+  port: 80
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: '1'
+    memory: 768Mi
+ingress:
+  enabled: false
+  className: ''
+  annotations: {}
+  host: ''
+  tls: []
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1

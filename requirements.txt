@@ -1,0 +1,7 @@
+fastapi==0.115.12
+uvicorn==0.34.2
+psycopg[binary]==3.2.9
+azure-storage-blob==12.25.1
+python-multipart==0.0.20
+Pillow==11.2.1
+pycountry==24.6.1

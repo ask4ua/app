@@ -1,0 +1,84 @@
+# Replace REGISTRY.azurecr.io before bootstrapping these resources.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: demoapp
+  namespace: argocd
+spec:
+  description: Demo App staging and production
+  sourceRepos:
+    - REGISTRY.azurecr.io/charts/staging
+    - REGISTRY.azurecr.io/charts/production
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: staging
+    - server: https://kubernetes.default.svc
+      namespace: production
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: apps
+      kind: Deployment
+    - group: ''
+      kind: Service
+    - group: networking.k8s.io
+      kind: Ingress
+    - group: policy
+      kind: PodDisruptionBudget
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: demoapp-staging
+  namespace: argocd
+spec:
+  project: demoapp
+  source:
+    repoURL: REGISTRY.azurecr.io/charts/staging
+    chart: demoapp
+    targetRevision: '>=0.0.0 <1.0.0'
+    helm:
+      valueFiles: [values-staging.yaml]
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions: [CreateNamespace=true]
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: demoapp-production
+  namespace: argocd
+spec:
+  project: demoapp
+  source:
+    repoURL: REGISTRY.azurecr.io/charts/production
+    chart: demoapp
+    targetRevision: '>=0.0.0 <1.0.0'
+    helm:
+      valueFiles: [values-production.yaml]
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: production
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions: [CreateNamespace=true]
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
