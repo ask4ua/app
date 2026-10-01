@@ -116,9 +116,12 @@ to **main**, and add these environment variables (not client secrets):
 
 The companion `app-tools` repo’s Pulumi project provisions the publishing identity and an
 ACR-scoped `AcrPush` grant for the existing AKS platform's classic RBAC registry.
-Its GitHub federation subject is `repo:OWNER/REPO:environment:acr-publish`, with
+Its deployed GitHub federation subject is
+`repo:ask4ua@22395298/app@1400339320:environment:acr-publish`, with
 issuer `https://token.actions.githubusercontent.com` and audience
-`api://AzureADTokenExchange`. `OWNER/REPO` must match this repository exactly.
+`api://AzureADTokenExchange`. This repository uses immutable owner/repository IDs.
+For another repository, read `gh api repos/OWNER/REPO/actions/oidc/customization/sub`
+and configure the tools stack's `githubOidcSubject` to match the exact subject.
 No Azure password or AKS access is required by this workflow. The hosted runner
 must be able to reach ACR; private registry networking needs a reachable runner.
 
