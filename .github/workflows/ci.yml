@@ -21,7 +21,7 @@ jobs:
       COMPOSE_PROJECT_NAME: demoapp-ci
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: pip
@@ -65,7 +65,7 @@ jobs:
       TEST_BOOTSTRAP_DATABASE_URL: postgresql://postgres:disposable-ci-password@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: pip
@@ -135,7 +135,7 @@ jobs:
       - uses: azure/setup-helm@v5.0.1
         with:
           version: v3.17.3
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Install chart packaging dependency
